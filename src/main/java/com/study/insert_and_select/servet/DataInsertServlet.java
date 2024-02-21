@@ -6,6 +6,7 @@ import java.io.PrintWriter;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
+import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
@@ -20,6 +21,7 @@ import javax.servlet.http.HttpServletResponse;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import com.mysql.cj.jdbc.Driver;
+import com.study.insert_and_select.dao.Student_dao;
 import com.study.insert_and_select.entity.Student;
 
 
@@ -51,54 +53,26 @@ public class DataInsertServlet extends HttpServlet {
 		
 		//Json -> Entity 객체 보통 재활용이 용이하게 하기 위해 Entity를 사용
 		Student student = gson.fromJson(builder.toString(), Student.class);
-		System.out.println(student.getName());
-		System.out.println(student.getAge());
 		
-		Connection con = null;	//데이터베이스 연결
-		String SQL = null;		//SQL 쿼리문 작성
-		PreparedStatement pstmt = null;//SQL 쿼리문 입력
-		int succesCount = 0; 	//SQL 실행결과(성공횟수)
+		Student_dao dao = Student_dao.getInstance(); 
 		
-		try {
-			//외부의 클래스 파일을 객체로 불러온다. 데이터베이스 커넥터 드라이브 클래스 이름
-			Class.forName("com.mysql.cj.jdbc.Driver");
-			String url = "jdbc:mysql://mysql-db.cr0mkw8s2iwu.ap-northeast-2.rds.amazonaws.com/db_study";
-			String username = "aws";
-			String password = "1q2w3e4r!!";
+		Student findStudent = dao.findStudentByName(student.getName());
+		
+		if(findStudent != null) {
+			Map<String, Object> errorMap = new HashMap<>();
+			errorMap.put("errorMasseage","이미 등록된 이름입니다.");
 			
-			con = DriverManager.getConnection(url, username, password);//
-			SQL = "insert into student_tb(student_name, student_age) values (?, ?)";
-			pstmt = con.prepareStatement(SQL);
-			pstmt.setString(1, student.getName());
-			pstmt.setInt(2, student.getAge());
-			succesCount = pstmt.executeUpdate();
-			
-		} catch (ClassNotFoundException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} catch (SQLException e) {
-			// TODO Auto-generated catch block
-			e.printStackTrace();
-		} finally {
-			
-				try {
-					if(pstmt != null) {
-						pstmt.close();
-					} 
-					if(con != null) {
-						con.close();
-					}
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-			}
-			
+			response.setStatus(400);
+			response.setContentType("application/json");
+			response.getWriter().println(gson.toJson(errorMap));
+			return;
 		}
+		int succesCount = dao.saveStudent(student);
 		Map<String, Object> responseMap = new HashMap();
 		responseMap.put("status",201);
 		responseMap.put("data","응답데이터");
 		responseMap.put("succesCount",succesCount);
-		
+		response.setStatus(201);
 		PrintWriter writer = response.getWriter();
 		response.setContentType("application/json");
 		writer.println(gson.toJson(responseMap));
